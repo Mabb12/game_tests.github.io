@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест-игра</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Создайте свой тест</h1>
+    <div id="test-creator">
+        <div id="questions-container">
+            <div class="question">
+                <input type="text" placeholder="Вопрос" class="question-text">
+                <div class="answers-container">
+                    <input type="text" placeholder="Ответ 1" class="answer">
+                    <input type="text" placeholder="Ответ 2" class="answer">
+                </div>
+                <button onclick="addAnswer(this)">Добавить ответ</button>
+                <input type="text" placeholder="Правильный ответ (номер)" class="correct-answer">
+            </div>
+        </div>
+        <button onclick="addQuestion()">Добавить вопрос</button>
+        <button onclick="saveTest()">Сохранить тест</button>
+        <button onclick="loadTest()">Загрузить тест</button>
+        <input type="file" id="file-input" class="hidden" accept=".txt">
+    </div>
+
+    <div id="test-runner" class="hidden">
+        <h1>Пройти тест</h1>
+        <div id="test-questions"></div>
+        <button onclick="checkAnswers()">Проверить ответы</button>
+        <button onclick="resetTest()">Сбросить тест</button>
+    </div>
+
+    <script>
+        let questions = [];
+
+        // Функция для шифрования данных в Base64
+        function encrypt(data) {
+            return btoa(unescape(encodeURIComponent(data)));
+        }
+
+        // Функция для дешифрования данных из Base64
+        function decrypt(data) {
+            return decodeURIComponent(escape(atob(data)));
+        }
+
+        // Добавление нового вопроса
+        function addQuestion() {
+            const questionsContainer = document.getElementById('questions-container');
+            const newQuestion = document.createElement('div');
+            newQuestion.className = 'question';
+            newQuestion.innerHTML = `
+                <input type="text" placeholder="Вопрос" class="question-text">
+                <div class="answers-container">
+                    <input type="text" placeholder="Ответ 1" class="answer">
+                    <input type="text" placeholder="Ответ 2" class="answer">
+                </div>
+                <button onclick="addAnswer(this)">Добавить ответ</button>
+                <input type="text" placeholder="Правильный ответ (номер)" class="correct-answer">
+            `;
+            questionsContainer.appendChild(newQuestion);
+        }
+
+        // Добавление нового ответа
+        function addAnswer(button) {
+            const answersContainer = button.previousElementSibling;
+            const newAnswer = document.createElement('input');
+            newAnswer.type = 'text';
+            newAnswer.className = 'answer';
+            newAnswer.placeholder = `Ответ ${answersContainer.children.length + 1}`;
+            answersContainer.appendChild(newAnswer);
+        }
+
+        // Сохранение теста
+        function saveTest() {
+            const questionElements = document.querySelectorAll('.question');
+            questions = [];
+            questionElements.forEach(q => {
+                const questionText = q.querySelector('.question-text').value;
+                const answers = Array.from(q.querySelectorAll('.answer')).map(a => a.value);
+                const correctAnswer = parseInt(q.querySelector('.correct-answer').value, 10);
+                questions.push({ questionText, answers, correctAnswer });
+            });
+
+            const data = JSON.stringify(questions, null, 2);
+            const encryptedData = encrypt(data); // Шифруем данные
+            const blob = new Blob([encryptedData], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'test.txt'; // Сохраняем как текстовый файл
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Загрузка теста
+        function loadTest() {
+            const fileInput = document.getElementById('file-input');
+            fileInput.click();
+            fileInput.onchange = function(event) {
+                const file = event.target.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const encryptedData = e.target.result;
+                    const decryptedData = decrypt(encryptedData); // Дешифруем данные
+                    questions = JSON.parse(decryptedData);
+                    startTest();
+                };
+                reader.readAsText(file);
+            };
+        }
+
+        // Запуск теста
+        function startTest() {
+            document.getElementById('test-creator').classList.add('hidden');
+            document.getElementById('test-runner').classList.remove('hidden');
+            const testQuestions = document.getElementById('test-questions');
+            testQuestions.innerHTML = '';
+            questions.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                questionDiv.innerHTML = `
+                    <h3>${q.questionText}</h3>
+                    ${q.answers.map((a, i) => `
+                        <label>
+                            <input type="radio" name="question-${index}" value="${i}">
+                            ${a}
+                        </label><br>
+                    `).join('')}
+                `;
+                testQuestions.appendChild(questionDiv);
+            });
+        }
+
+        // Проверка ответов
+        function checkAnswers() {
+            let correctCount = 0;
+            questions.forEach((q, index) => {
+                const selectedAnswer = document.querySelector(`input[name="question-${index}"]:checked`);
+                if (selectedAnswer && parseInt(selectedAnswer.value, 10) === q.correctAnswer - 1) {
+                    correctCount++;
+                }
+            });
+            alert(`Правильных ответов: ${correctCount} из ${questions.length}`);
+        }
+
+        // Сброс теста
+        function resetTest() {
+            document.getElementById('test-runner').classList.add('hidden');
+            document.getElementById('test-creator').classList.remove('hidden');
+            questions = [];
+        }
+    </script>
+</body>
+</html>
